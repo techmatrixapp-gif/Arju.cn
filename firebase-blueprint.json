@@ -1,0 +1,113 @@
+{
+  "entities": {
+    "MenuCategory": {
+      "title": "Menu Category",
+      "description": "Categories for menu organizing",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "order": { "type": "number" },
+        "visible": { "type": "boolean" },
+        "blurb": { "type": "string" }
+      },
+      "required": ["name", "order", "visible"]
+    },
+    "MenuItem": {
+      "title": "Menu Item",
+      "description": "Food and beverage item",
+      "type": "object",
+      "properties": {
+        "categoryId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "variants": { "type": "array" },
+        "tags": { "type": "array" },
+        "imageUrl": { "type": "string" },
+        "available": { "type": "boolean" },
+        "order": { "type": "number" }
+      },
+      "required": ["categoryId", "name", "price", "available", "order"]
+    },
+    "Order": {
+      "title": "Customer Order",
+      "description": "Takeout and delivery food order",
+      "type": "object",
+      "properties": {
+        "items": { "type": "array" },
+        "subtotal": { "type": "number" },
+        "tax": { "type": "number" },
+        "deliveryFee": { "type": "number" },
+        "total": { "type": "number" },
+        "customer": { "type": "object" },
+        "type": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "paymentStatus": { "type": "string" },
+        "orderStatus": { "type": "string" }
+      },
+      "required": ["items", "total", "customer", "type", "paymentStatus", "orderStatus"]
+    },
+    "Booking": {
+      "title": "Table Reservation",
+      "description": "Dine-in table booking",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "partySize": { "type": "number" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["name", "phone", "partySize", "date", "time", "status"]
+    },
+    "GalleryImage": {
+      "title": "Gallery Image",
+      "description": "Photo for the restaurant gallery",
+      "type": "object",
+      "properties": {
+        "imageUrl": { "type": "string" },
+        "caption": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["imageUrl", "caption", "order"]
+    },
+    "Review": {
+      "title": "Customer Review",
+      "description": "Testimonial and star rating",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "stars": { "type": "number" },
+        "text": { "type": "string" },
+        "approved": { "type": "boolean" }
+      },
+      "required": ["name", "stars", "text", "approved"]
+    },
+    "GeneralSettings": {
+      "title": "General Settings",
+      "description": "Store hours, contact, and site copy",
+      "type": "object",
+      "properties": {
+        "storeHours": { "type": "array" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "socialLinks": { "type": "object" },
+        "heroHeadline": { "type": "string" },
+        "storyText": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/menuCategories/{categoryId}": { "schema": "MenuCategory", "description": "Menu categories" },
+    "/menuItems/{itemId}": { "schema": "MenuItem", "description": "Menu items" },
+    "/orders/{orderId}": { "schema": "Order", "description": "Online customer orders" },
+    "/bookings/{bookingId}": { "schema": "Booking", "description": "Table bookings" },
+    "/gallery/{imageId}": { "schema": "GalleryImage", "description": "Gallery images" },
+    "/reviews/{reviewId}": { "schema": "Review", "description": "Customer testimonials" },
+    "/settings/general": { "schema": "GeneralSettings", "description": "Site settings" },
+    "/admins/{uid}": { "schema": "AdminUser", "description": "Authorized admin users" }
+  }
+}

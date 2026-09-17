@@ -1,8 +1,10 @@
 import Reveal from "./Reveal";
 import { LEAF } from "./Logo";
-import { GALLERY } from "../data/content";
+import { useGalleryImages } from "../services/firestoreData";
 
 export default function Gallery() {
+  const { images } = useGalleryImages();
+
   return (
     <section id="gallery" className="relative bg-ink text-cream overflow-hidden">
       <div className="pointer-events-none absolute -left-40 top-1/4 h-[440px] w-[440px] rounded-full bg-crimson/12 blur-[130px]" />
@@ -34,12 +36,12 @@ export default function Gallery() {
         </div>
 
         <div className="columns-2 gap-4 md:columns-3 [column-fill:_balance]">
-          {GALLERY.map((g, i) => (
-            <Reveal key={g.src} delay={(i % 3) * 100} className="mb-4 break-inside-avoid">
+          {images.map((g, i) => (
+            <Reveal key={g.id || g.imageUrl || g.src || i} delay={(i % 3) * 100} className="mb-4 break-inside-avoid">
               <figure className="group relative overflow-hidden border border-cream/10">
                 <img
-                  src={g.src}
-                  alt={g.caption}
+                  src={g.imageUrl || g.src}
+                  alt={g.caption || "ARJU Gallery"}
                   loading="lazy"
                   className="w-full object-cover transition-transform duration-[1.1s] ease-out group-hover:scale-[1.06]"
                 />

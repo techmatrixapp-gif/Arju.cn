@@ -152,12 +152,20 @@ export default function Footer() {
       <div className="border-t border-cream/10">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-5 py-6 text-[11px] tracking-[0.14em] uppercase text-cream/35 sm:flex-row sm:px-8 lg:px-10">
           <p>© 2026 ARJU Restaurant · Taste of Canada</p>
-          <p className="flex items-center gap-2">
-            Crafted with maple in Toronto
-            <svg viewBox="0 0 100 130" className="h-3.5 w-2.5 fill-crimson">
-              <path d={LEAF} />
-            </svg>
-          </p>
+          <div className="flex items-center gap-6">
+            <a
+              href="/admin"
+              className="text-stone hover:text-crimson-bright transition-colors"
+            >
+              Staff Portal
+            </a>
+            <p className="flex items-center gap-2">
+              Crafted with maple in Toronto
+              <svg viewBox="0 0 100 130" className="h-3.5 w-2.5 fill-crimson">
+                <path d={LEAF} />
+              </svg>
+            </p>
+          </div>
         </div>
       </div>
     </footer>

@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "../utils/cn";
 import Reveal from "./Reveal";
 import { LEAF } from "./Logo";
 import { useCart } from "../context/CartContext";
-import { MENU_TABS, SIGNATURES, type MenuItem } from "../data/content";
+import { SIGNATURES } from "../data/content";
+import { useCategories, useMenuItems } from "../services/firestoreData";
 
-function AddSignature({ dish }: { dish: (typeof SIGNATURES)[number] }) {
+function AddSignature({ dish }: { dish: { id: string; name: string; price: number; img?: string; category?: string } }) {
   const { qtyOf, addItem, setQty } = useCart();
   const qty = qtyOf(dish.id);
   const price = Number(dish.price);
@@ -18,11 +19,11 @@ function AddSignature({ dish }: { dish: (typeof SIGNATURES)[number] }) {
             id: dish.id,
             name: dish.name,
             price,
-            img: dish.img,
-            category: dish.category,
+            img: dish.img || "",
+            category: dish.category || "",
           })
         }
-        className="inline-flex shrink-0 items-center gap-2 bg-crimson px-4 py-2.5 text-[10px] font-bold tracking-[0.2em] uppercase text-cream transition-all duration-300 hover:bg-crimson-bright"
+        className="inline-flex shrink-0 items-center gap-2 bg-crimson px-4 py-2.5 text-[10px] font-bold tracking-[0.2em] uppercase text-cream transition-all duration-300 hover:bg-crimson-bright cursor-pointer"
       >
         <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2">
           <path d="M8 3v10M3 8h10" strokeLinecap="round" />
@@ -37,7 +38,7 @@ function AddSignature({ dish }: { dish: (typeof SIGNATURES)[number] }) {
       <button
         onClick={() => setQty(dish.id, qty - 1)}
         aria-label={`Remove one ${dish.name}`}
-        className="flex h-8 w-8 items-center justify-center transition-colors hover:bg-ink/20"
+        className="flex h-8 w-8 items-center justify-center transition-colors hover:bg-ink/20 cursor-pointer"
       >
         <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2">
           <path d="M3 8h10" strokeLinecap="round" />
@@ -47,7 +48,7 @@ function AddSignature({ dish }: { dish: (typeof SIGNATURES)[number] }) {
       <button
         onClick={() => setQty(dish.id, qty + 1)}
         aria-label={`Add one ${dish.name}`}
-        className="flex h-8 w-8 items-center justify-center transition-colors hover:bg-ink/20"
+        className="flex h-8 w-8 items-center justify-center transition-colors hover:bg-ink/20 cursor-pointer"
       >
         <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2">
           <path d="M8 3v10M3 8h10" strokeLinecap="round" />
@@ -99,14 +100,14 @@ function Tags({ tags }: { tags?: string[] }) {
   );
 }
 
-function PriceBlock({ item }: { item: MenuItem }) {
-  if (item.prices) {
+function PriceBlock({ item }: { item: any }) {
+  if (item.variants && item.variants.length > 0) {
     return (
       <div className="shrink-0 text-right">
-        {item.prices.map((p) => (
+        {item.variants.map((p: any) => (
           <p key={p.label} className="flex items-baseline justify-end gap-2 text-sm leading-tight sm:text-base">
             <span className="text-[10px] font-medium tracking-wide text-ink/45">{p.label}</span>
-            <span className="font-display font-bold text-crimson tabular-nums">{p.price}</span>
+            <span className="font-display font-bold text-crimson tabular-nums">${Number(p.price).toFixed(2)}</span>
           </p>
         ))}
       </div>
@@ -114,12 +115,12 @@ function PriceBlock({ item }: { item: MenuItem }) {
   }
   return (
     <p className="shrink-0 font-display text-lg font-bold text-crimson sm:text-xl tabular-nums">
-      {item.price}
+      ${Number(item.price).toFixed(2)}
     </p>
   );
 }
 
-function MenuRow({ item, index }: { item: MenuItem; index: number }) {
+function MenuRow({ item, index }: { item: any; index: number }) {
   return (
     <div className="fade-swap" style={{ animationDelay: `${Math.min(index, 12) * 45}ms` }}>
       <div className="flex items-start justify-between gap-4">
@@ -127,13 +128,11 @@ function MenuRow({ item, index }: { item: MenuItem; index: number }) {
         <span className="leader" aria-hidden />
         <PriceBlock item={item} />
       </div>
-      {(item.desc || item.tags) && (
+      {(item.description || item.desc || item.tags) && (
         <div className="mt-1 flex items-start justify-between gap-4">
-          {item.desc ? (
-            <p className="max-w-md text-sm font-light leading-relaxed text-ink/60">{item.desc}</p>
-          ) : (
-            <span />
-          )}
+          <p className="max-w-md text-sm font-light leading-relaxed text-ink/60">
+            {item.description || item.desc}
+          </p>
           <Tags tags={item.tags} />
         </div>
       )}
@@ -143,7 +142,16 @@ function MenuRow({ item, index }: { item: MenuItem; index: number }) {
 
 /* ---------------- signatures ---------------- */
 
-function Signatures() {
+function Signatures({ items }: { items: any[] }) {
+  // Pick popular or first 4 featured items
+  const featured = useMemo(() => {
+    const popularItems = items.filter((i) => i.popular);
+    if (popularItems.length >= 4) {
+      return popularItems.slice(0, 4);
+    }
+    return SIGNATURES;
+  }, [items]);
+
   return (
     <section className="relative bg-ink text-cream overflow-hidden">
       <div className="pointer-events-none absolute -right-40 top-0 h-[480px] w-[480px] rounded-full bg-crimson/15 blur-[130px]" />
@@ -164,18 +172,18 @@ function Signatures() {
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-          {SIGNATURES.map((dish, i) => (
+          {featured.map((dish, i) => (
             <Reveal key={dish.id} delay={i * 110}>
               <article className="group relative overflow-hidden border border-cream/10 bg-coal">
                 <div className="relative overflow-hidden">
                   <img
-                    src={dish.img}
+                    src={dish.imageUrl || dish.img}
                     alt={dish.name}
                     className="aspect-[4/5] w-full object-cover transition-transform duration-[1.1s] ease-out group-hover:scale-[1.07]"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/25 to-transparent" />
                   <span className="absolute left-4 top-4 bg-crimson px-3 py-1.5 text-[9px] font-semibold tracking-[0.26em] uppercase text-cream">
-                    {dish.tag}
+                    {dish.tags?.[0] || dish.tag || "Signature"}
                   </span>
                 </div>
                 <div className="relative p-6">
@@ -183,13 +191,21 @@ function Signatures() {
                     <h3 className="font-display text-xl font-bold leading-snug">{dish.name}</h3>
                     <p className="font-display text-2xl font-bold text-crimson-bright tabular-nums">
                       <span className="mr-0.5 align-top text-xs">$</span>
-                      {dish.price}
+                      {Number(dish.price).toFixed(2)}
                     </p>
                   </div>
-                  <p className="mt-3 text-sm font-light leading-relaxed text-cream/60">{dish.desc}</p>
+                  <p className="mt-3 text-sm font-light leading-relaxed text-cream/60 line-clamp-2">
+                    {dish.description || dish.desc}
+                  </p>
                   <div className="mt-5 flex items-center justify-between gap-3">
                     <span className="block h-0.5 w-10 bg-crimson transition-all duration-500 group-hover:w-full" />
-                    <AddSignature dish={dish} />
+                    <AddSignature dish={{
+                      id: dish.id,
+                      name: dish.name,
+                      price: Number(dish.price),
+                      img: dish.imageUrl || dish.img,
+                      category: dish.categoryId,
+                    }} />
                   </div>
                 </div>
               </article>
@@ -203,15 +219,21 @@ function Signatures() {
 
 /* ---------------- full menu ---------------- */
 
-function Menu() {
-  const [tab, setTab] = useState(MENU_TABS[0].id);
-  const current = MENU_TABS.find((t) => t.id === tab) ?? MENU_TABS[0];
+function Menu({ categories, items }: { categories: any[]; items: any[] }) {
+  const visibleCategories = useMemo(
+    () => categories.filter((c) => c.visible !== false),
+    [categories]
+  );
 
-  // pre-compute group boundaries
-  const rows = current.items.map((item, i) => ({
-    item,
-    showGroup: i === 0 || current.items[i - 1].group !== item.group,
-  }));
+  const [activeTab, setActiveTab] = useState<string>("");
+
+  const currentTabId = activeTab || visibleCategories[0]?.id || "";
+  const currentCategory = visibleCategories.find((c) => c.id === currentTabId) || visibleCategories[0];
+
+  const currentItems = useMemo(() => {
+    if (!currentCategory) return [];
+    return items.filter((item) => item.categoryId === currentCategory.id);
+  }, [items, currentCategory]);
 
   return (
     <section id="menu" className="paper relative bg-cream text-ink">
@@ -233,62 +255,59 @@ function Menu() {
         {/* tabs */}
         <Reveal delay={120}>
           <div className="mt-12 flex flex-wrap justify-center gap-2.5 sm:gap-3">
-            {MENU_TABS.map((t) => (
+            {visibleCategories.map((t) => (
               <button
                 key={t.id}
-                onClick={() => setTab(t.id)}
+                onClick={() => setActiveTab(t.id)}
                 className={cn(
-                  "px-4 py-3 text-[10px] font-semibold tracking-[0.18em] uppercase transition-all duration-300 sm:px-6 sm:text-[11px]",
-                  tab === t.id
+                  "px-4 py-3 text-[10px] font-semibold tracking-[0.18em] uppercase transition-all duration-300 sm:px-6 sm:text-[11px] cursor-pointer",
+                  currentTabId === t.id
                     ? "bg-ink text-cream shadow-[0_10px_30px_rgba(12,11,12,0.35)]"
                     : "border border-ink/20 text-ink/70 hover:border-crimson hover:text-crimson",
                 )}
               >
-                {t.label}
+                {t.name || t.label}
               </button>
             ))}
           </div>
         </Reveal>
 
         {/* items */}
-        <div key={current.id} className="mt-12">
-          {rows.map(({ item, showGroup }, i) => (
-            <div key={`${current.id}-${item.name}`}>
-              {showGroup && item.group && (
-                <h3 className="mb-6 mt-9 flex items-center gap-3 font-display text-2xl font-extrabold text-ink first:mt-0">
-                  <span className="inline-block h-5 w-1.5 bg-crimson" />
-                  {item.group}
-                </h3>
-              )}
-              <div className="mb-6 border-b border-ink/10 pb-6">
+        <div key={currentTabId} className="mt-12">
+          {currentCategory?.blurb && (
+            <p className="text-center text-xs text-ink/50 italic mb-8 -mt-4">
+              {currentCategory.blurb}
+            </p>
+          )}
+
+          {currentItems.length > 0 ? (
+            currentItems.map((item, i) => (
+              <div key={item.id} className="mb-6 border-b border-ink/10 pb-6">
                 <MenuRow item={item} index={i} />
               </div>
+            ))
+          ) : (
+            <div className="py-12 text-center text-xs text-ink/50">
+              Dishes in this category are being prepared fresh.
             </div>
-          ))}
+          )}
         </div>
 
         {/* tab note + spice levels */}
         <Reveal>
           <div className="mt-10 space-y-3">
-            {current.spice && (
-              <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-sm font-medium text-crimson">
-                <span className="text-[11px] font-semibold tracking-[0.3em] uppercase text-ink/50">
-                  Choose your spice level
-                </span>
-                <span>Mild</span>
-                <span className="text-ink/30">|</span>
-                <span>Medium</span>
-                <span className="text-ink/30">|</span>
-                <span>Spicy</span>
-                <span className="text-ink/30">|</span>
-                <span>Extra Spicy</span>
-              </p>
-            )}
-            {current.note && (
-              <p className="whitespace-pre-line text-center text-xs font-light leading-relaxed text-ink/50">
-                {current.note}
-              </p>
-            )}
+            <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-sm font-medium text-crimson">
+              <span className="text-[11px] font-semibold tracking-[0.3em] uppercase text-ink/50">
+                Choose your spice level
+              </span>
+              <span>Mild</span>
+              <span className="text-ink/30">|</span>
+              <span>Medium</span>
+              <span className="text-ink/30">|</span>
+              <span>Spicy</span>
+              <span className="text-ink/30">|</span>
+              <span>Extra Spicy</span>
+            </p>
           </div>
         </Reveal>
 
@@ -345,10 +364,13 @@ function Menu() {
 }
 
 export default function MenuSection() {
+  const { categories } = useCategories();
+  const { items } = useMenuItems();
+
   return (
     <>
-      <Signatures />
-      <Menu />
+      <Signatures items={items} />
+      <Menu categories={categories} items={items} />
     </>
   );
 }

@@ -1,8 +1,14 @@
 import { useState, type FormEvent } from "react";
+import { collection, addDoc } from "firebase/firestore";
+import { db } from "../firebase";
 import { cn } from "../utils/cn";
 import Reveal from "./Reveal";
 import { LEAF } from "./Logo";
-import { HOURS, PHONE, EMAIL, ADDRESS, IMAGES } from "../data/content";
+import { IMAGES } from "../data/content";
+import { useSettings } from "../services/firestoreData";
+import { saveLocalBooking } from "../services/localOrdersStore";
+import type { Booking } from "../types/firestore";
+import { Loader2, CheckCircle2 } from "lucide-react";
 
 /* hours indexed by Date.getDay(): 0 = Sunday */
 const WINDOWS: { open: number; close: number }[] = [
@@ -19,30 +25,76 @@ function useOpenStatus() {
   const now = new Date();
   const today = now.getDay();
   const h = now.getHours() + now.getMinutes() / 60;
-  const win = WINDOWS[today];
+  const win = WINDOWS[today] || { open: 12, close: 22 };
   const open = h >= win.open && h < win.close;
   return { open, today, nextOpen: win.open };
 }
 
 export default function Visit() {
   const { open, today } = useOpenStatus();
+  const { settings } = useSettings();
+
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<null | {
     name: string;
     date: string;
     time: string;
-    guests: string;
+    partySize: number;
   }>(null);
 
-  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+
     const fd = new FormData(e.currentTarget);
+    const name = String(fd.get("name") || "").trim();
+    const phone = String(fd.get("phone") || "").trim();
+    const email = String(fd.get("email") || "").trim();
+    const date = String(fd.get("date") || "");
+    const time = String(fd.get("time") || "");
+    const partySizeStr = String(fd.get("guests") || "2");
+    const partySize = parseInt(partySizeStr.replace(/[^0-9]/g, "")) || 2;
+    const notes = String(fd.get("notes") || "").trim();
+
+    const bookingId = `book-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+    const newBooking: Booking = {
+      id: bookingId,
+      name,
+      phone,
+      email,
+      partySize,
+      date,
+      time,
+      notes,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
+
+    // Save to local cache so admin dashboard updates immediately
+    saveLocalBooking(newBooking);
+
+    try {
+      const docRef = await addDoc(collection(db, "bookings"), newBooking);
+      if (docRef?.id) {
+        newBooking.id = docRef.id;
+        saveLocalBooking(newBooking);
+      }
+    } catch (err: any) {
+      console.warn("Could not write booking to Firestore (cached locally):", err);
+    }
+
     setSent({
-      name: String(fd.get("name") || "friend"),
-      date: String(fd.get("date") || ""),
-      time: String(fd.get("time") || ""),
-      guests: String(fd.get("guests") || "2"),
+      name,
+      date,
+      time,
+      partySize,
     });
+    setSubmitting(false);
   };
+
+  const hoursList = settings.storeHours || [];
 
   return (
     <section id="visit" className="relative bg-ink text-cream overflow-hidden">
@@ -83,12 +135,12 @@ export default function Visit() {
                 {open ? "Open right now" : "Closed for the evening"}
               </p>
               <ul className="mt-7 space-y-1">
-                {HOURS.map((row, i) => {
-                  const dayIdx = (i + 1) % 7; // list starts Monday
+                {hoursList.map((row, i) => {
+                  const dayIdx = (i + 1) % 7;
                   const isToday = dayIdx === today;
                   return (
                     <li
-                      key={row.day}
+                      key={row.day || i}
                       className={cn(
                         "flex items-center justify-between px-3 py-2.5 text-sm transition-colors",
                         isToday ? "bg-crimson/15 text-cream" : "text-cream/60",
@@ -104,9 +156,7 @@ export default function Visit() {
                 })}
               </ul>
               <p className="mt-6 border-t border-cream/10 pt-5 text-xs font-light leading-relaxed text-cream/45">
-                Kitchen takes last orders 30 minutes before close. Every Hakka
-                dish and biryani is available Mild, Medium, Spicy or Extra
-                Spicy.
+                Kitchen takes last orders 30 minutes before close. Every Hakka dish and biryani is crafted fresh to order.
               </p>
             </div>
           </Reveal>
@@ -129,19 +179,19 @@ export default function Visit() {
               </div>
               <div className="flex flex-1 flex-col p-8">
                 <h3 className="font-display text-2xl font-bold">Find us</h3>
-                <p className="mt-4 text-sm font-light leading-relaxed text-cream/70">{ADDRESS}</p>
+                <p className="mt-4 text-sm font-light leading-relaxed text-cream/70">{settings.address}</p>
                 <div className="mt-5 space-y-2.5 text-sm">
                   <a
-                    href={`tel:${PHONE.replace(/[^0-9]/g, "")}`}
+                    href={`tel:${settings.phone.replace(/[^0-9]/g, "")}`}
                     className="block text-cream/85 hover:text-crimson-bright transition-colors"
                   >
-                    {PHONE}
+                    {settings.phone}
                   </a>
                   <a
-                    href={`mailto:${EMAIL}`}
+                    href={`mailto:${settings.email}`}
                     className="block text-cream/85 hover:text-crimson-bright transition-colors"
                   >
-                    {EMAIL}
+                    {settings.email}
                   </a>
                 </div>
                 <div className="mt-auto space-y-2 border-t border-cream/10 pt-5 text-xs font-light leading-relaxed text-cream/45">
@@ -167,71 +217,99 @@ export default function Visit() {
                 <form onSubmit={onSubmit} className="relative flex h-full flex-col">
                   <h3 className="font-display text-2xl font-bold text-cream">Reserve a table</h3>
                   <p className="mt-2 text-xs font-light text-cream/75">
-                    Parties of 8 or more — call us directly at {PHONE}.
+                    Parties of 8 or more — call us directly at {settings.phone}.
                   </p>
-                  <div className="mt-6 space-y-3.5">
+
+                  {error && (
+                    <div className="mt-3 p-2.5 bg-black/40 border border-white/20 text-xs text-cream rounded">
+                      {error}
+                    </div>
+                  )}
+
+                  <div className="mt-6 space-y-3">
                     <input
                       name="name"
                       required
                       placeholder="Full name"
-                      className="w-full border border-cream/30 bg-ink/15 px-4 py-3 text-sm text-cream placeholder:text-cream/50 outline-none transition-colors focus:border-cream focus:bg-ink/25"
+                      className="w-full border border-cream/30 bg-ink/15 px-4 py-2.5 text-sm text-cream placeholder:text-cream/50 outline-none transition-colors focus:border-cream focus:bg-ink/25"
                     />
-                    <input
-                      name="phone"
-                      type="tel"
-                      required
-                      placeholder="Phone number"
-                      className="w-full border border-cream/30 bg-ink/15 px-4 py-3 text-sm text-cream placeholder:text-cream/50 outline-none transition-colors focus:border-cream focus:bg-ink/25"
-                    />
-                    <div className="grid grid-cols-2 gap-3.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <input
+                        name="phone"
+                        type="tel"
+                        required
+                        placeholder="Phone number"
+                        className="w-full border border-cream/30 bg-ink/15 px-4 py-2.5 text-sm text-cream placeholder:text-cream/50 outline-none transition-colors focus:border-cream focus:bg-ink/25"
+                      />
+                      <input
+                        name="email"
+                        type="email"
+                        placeholder="Email address"
+                        className="w-full border border-cream/30 bg-ink/15 px-4 py-2.5 text-sm text-cream placeholder:text-cream/50 outline-none transition-colors focus:border-cream focus:bg-ink/25"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
                       <input
                         name="date"
                         type="date"
                         required
-                        className="w-full border border-cream/30 bg-ink/15 px-4 py-3 text-sm text-cream outline-none transition-colors focus:border-cream focus:bg-ink/25 [color-scheme:dark]"
+                        className="w-full border border-cream/30 bg-ink/15 px-4 py-2.5 text-sm text-cream outline-none transition-colors focus:border-cream focus:bg-ink/25 [color-scheme:dark]"
                       />
                       <select
                         name="time"
                         defaultValue="7:00 PM"
-                        className="w-full border border-cream/30 bg-ink/15 px-4 py-3 text-sm text-cream outline-none transition-colors focus:border-cream focus:bg-ink/25 [color-scheme:dark]"
+                        className="w-full border border-cream/30 bg-ink/15 px-4 py-2.5 text-sm text-cream outline-none transition-colors focus:border-cream focus:bg-ink/25 [color-scheme:dark]"
                       >
                         {["5:00 PM", "5:30 PM", "6:00 PM", "6:30 PM", "7:00 PM", "7:30 PM", "8:00 PM", "8:30 PM", "9:00 PM", "9:30 PM"].map((t) => (
-                          <option key={t}>{t}</option>
+                          <option key={t} className="bg-ink text-cream">{t}</option>
                         ))}
                       </select>
                     </div>
                     <select
                       name="guests"
                       defaultValue="2 guests"
-                      className="w-full border border-cream/30 bg-ink/15 px-4 py-3 text-sm text-cream outline-none transition-colors focus:border-cream focus:bg-ink/25 [color-scheme:dark]"
+                      className="w-full border border-cream/30 bg-ink/15 px-4 py-2.5 text-sm text-cream outline-none transition-colors focus:border-cream focus:bg-ink/25 [color-scheme:dark]"
                     >
                       {["1 guest", "2 guests", "3 guests", "4 guests", "5 guests", "6 guests", "7 guests"].map((g) => (
-                        <option key={g}>{g}</option>
+                        <option key={g} className="bg-ink text-cream">{g}</option>
                       ))}
                     </select>
+                    <input
+                      name="notes"
+                      placeholder="Special requests, dietary notes, occasion..."
+                      className="w-full border border-cream/30 bg-ink/15 px-4 py-2 text-xs text-cream placeholder:text-cream/50 outline-none transition-colors focus:border-cream focus:bg-ink/25"
+                    />
                   </div>
+
                   <button
                     type="submit"
-                    className="group mt-7 inline-flex w-full items-center justify-center gap-3 bg-ink px-6 py-4 text-[11px] font-semibold tracking-[0.28em] uppercase text-cream transition-all duration-300 hover:bg-charcoal hover:shadow-[0_12px_35px_rgba(12,11,12,0.4)]"
+                    disabled={submitting}
+                    className="group mt-6 inline-flex w-full items-center justify-center gap-3 bg-ink px-6 py-3.5 text-[11px] font-semibold tracking-[0.28em] uppercase text-cream transition-all duration-300 hover:bg-charcoal hover:shadow-[0_12px_35px_rgba(12,11,12,0.4)] disabled:opacity-50 cursor-pointer"
                   >
-                    Request table
-                    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" strokeWidth="1.8">
-                      <path d="M2 8h11M9 3.5 13.5 8 9 12.5" />
-                    </svg>
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-crimson-bright" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        Request table
+                        <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" strokeWidth="1.8">
+                          <path d="M2 8h11M9 3.5 13.5 8 9 12.5" />
+                        </svg>
+                      </>
+                    )}
                   </button>
                 </form>
-                <div className="relative mt-6 border-t border-cream/25 pt-5 text-center">
+
+                <div className="relative mt-6 border-t border-cream/25 pt-4 text-center">
                   <p className="text-[10px] font-medium tracking-[0.26em] uppercase text-cream/70">
                     Staying in tonight?
                   </p>
                   <a
                     href="#order"
-                    className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-cream underline-offset-4 transition-all hover:underline hover:decoration-2"
+                    className="mt-1.5 inline-flex items-center gap-2 text-xs font-bold text-cream underline-offset-4 transition-all hover:underline hover:decoration-2"
                   >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-                      <path d="M6 8h12l-1 12.5H7L6 8Z" strokeLinejoin="round" />
-                      <path d="M9 8V6.5a3 3 0 0 1 6 0V8" strokeLinecap="round" />
-                    </svg>
                     Order pickup or delivery →
                   </a>
                 </div>
@@ -239,21 +317,21 @@ export default function Visit() {
               ) : (
                 <div className="relative flex h-full flex-col items-start justify-center text-cream fade-swap">
                   <span className="flex h-14 w-14 items-center justify-center rounded-full bg-ink">
-                    <svg viewBox="0 0 24 24" className="h-7 w-7 stroke-crimson-bright" fill="none" strokeWidth="2.4">
-                      <path d="M4.5 12.5l5 5 10-11" />
-                    </svg>
+                    <CheckCircle2 className="h-7 w-7 text-crimson-bright" />
                   </span>
                   <h3 className="mt-6 font-display text-3xl font-bold">
-                    See you soon, {sent.name.split(" ")[0]}.
+                    Reservation Request Received
                   </h3>
-                  <p className="mt-3 text-sm font-light leading-relaxed text-cream/85">
-                    Table for {sent.guests} · {sent.date} at {sent.time}.
+                  <p className="mt-3 text-sm font-light leading-relaxed text-cream/90">
+                    Thank you, {sent.name}! Table for {sent.partySize} guests on {sent.date} at {sent.time}.
                     <br />
-                    We'll text a confirmation within the hour.
+                    <span className="text-cream/75 text-xs block mt-2">
+                      Reservation request received — we'll confirm shortly by phone/email.
+                    </span>
                   </p>
                   <button
                     onClick={() => setSent(null)}
-                    className="mt-8 border border-cream/40 px-6 py-3 text-[11px] font-semibold tracking-[0.26em] uppercase transition-all duration-300 hover:border-cream hover:bg-ink/20"
+                    className="mt-8 border border-cream/40 px-6 py-3 text-[11px] font-semibold tracking-[0.26em] uppercase transition-all duration-300 hover:border-cream hover:bg-ink/20 cursor-pointer"
                   >
                     Make another booking
                   </button>

@@ -1,8 +1,12 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { collection, addDoc } from "firebase/firestore";
+import { db } from "../firebase";
 import { cn } from "../utils/cn";
 import { LEAF } from "./Logo";
 import { useCart, type CartLine } from "../context/CartContext";
 import { ADDRESS, PHONE, ORDER_FEES } from "../data/content";
+import { saveLocalOrder } from "../services/localOrdersStore";
+import type { Order } from "../types/firestore";
 
 const cad = (n: number) => `$${n.toFixed(2)}`;
 
@@ -126,6 +130,7 @@ export function CartDrawer() {
   const [form, setForm] = useState({
     name: "",
     phone: "",
+    email: "",
     street: "",
     unit: "",
     postal: "",
@@ -151,7 +156,7 @@ export function CartDrawer() {
     setStep("cart");
   };
 
-  const placeOrder = (e: FormEvent) => {
+  const placeOrder = async (e: FormEvent) => {
     e.preventDefault();
     const eta =
       when !== "ASAP"
@@ -159,17 +164,76 @@ export function CartDrawer() {
         : fulfillment === "pickup"
           ? "Ready in 20–25 minutes"
           : "Arrives in 35–50 minutes";
+    const orderNo = `ARJU-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const deliveryAddress =
+      fulfillment === "delivery"
+        ? [form.street, form.unit && `Unit ${form.unit}`, `Toronto, ON ${form.postal}`]
+            .filter(Boolean)
+            .join(", ")
+        : undefined;
+
+    const orderId = `ord-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+    const newOrder: Order & { [key: string]: any } = {
+      id: orderId,
+      orderNo,
+      customer: {
+        name: form.name,
+        email: form.email || "",
+        phone: form.phone,
+        street: form.street || "",
+        unit: form.unit || "",
+        address: deliveryAddress || "",
+        postalCode: form.postal || "",
+        notes: form.notes || "",
+      },
+      customerName: form.name,
+      customerEmail: form.email || "",
+      customerPhone: form.phone,
+      items: items.map((l) => ({
+        itemId: l.id,
+        name: l.name,
+        price: l.price,
+        quantity: l.qty,
+        qty: l.qty,
+        variant: (l as any).variant || "",
+        notes: "",
+      })),
+      subtotal,
+      tax,
+      deliveryFee: fee,
+      total,
+      type: fulfillment,
+      orderType: fulfillment,
+      orderStatus: "new",
+      status: "new",
+      paymentStatus: pay === "card" ? "paid" : "pending",
+      paymentMethod: pay,
+      deliveryAddress: deliveryAddress || null,
+      notes: form.notes || "",
+      createdAt: new Date().toISOString(),
+    };
+
+    // 1. Immediately save to reliable local store so admin always receives it in real time
+    saveLocalOrder(newOrder);
+
+    // 2. Persist to Firestore database
+    try {
+      const docRef = await addDoc(collection(db, "orders"), newOrder);
+      if (docRef?.id) {
+        newOrder.id = docRef.id;
+        saveLocalOrder(newOrder);
+      }
+    } catch (err) {
+      console.warn("Could not write order to Firestore (saved locally):", err);
+    }
+
     setConfirmation({
-      orderNo: `ARJU-${Math.floor(1000 + Math.random() * 9000)}`,
+      orderNo,
       fulfillment,
       name: form.name,
       phone: form.phone,
-      address:
-        fulfillment === "delivery"
-          ? [form.street, form.unit && `Unit ${form.unit}`, `Toronto, ON ${form.postal}`]
-              .filter(Boolean)
-              .join(", ")
-          : undefined,
+      address: deliveryAddress,
       when,
       eta,
       items,
@@ -400,6 +464,10 @@ export function CartDrawer() {
                 <div>
                   <label className={labelCls} htmlFor="ord-phone">Mobile number *</label>
                   <input id="ord-phone" type="tel" required value={form.phone} onChange={set("phone")} placeholder="(416) 555-0148" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls} htmlFor="ord-email">Email address</label>
+                  <input id="ord-email" type="email" value={form.email} onChange={set("email")} placeholder="jordan@example.com" className={inputCls} />
                 </div>
 
                 {fulfillment === "delivery" ? (

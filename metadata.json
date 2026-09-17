@@ -1,0 +1,6 @@
+{
+  "name": "ARJU — Taste of Canada",
+  "description": "Fine Canadian restaurant in Toronto celebrating classic Canadian and world flavours: wok-tossed Hakka classics, slow-layered biryani, grilled shawarma, and stone-baked pizza.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
