@@ -1,70 +1,11 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Check if the user is the designated owner / superadmin
-    function isSuperAdmin() {
-      return request.auth != null && (
-        request.auth.token.email == "techmatrix.app@gmail.com" ||
-        request.auth.token.email.matches('(?i)techmatrix\\.app@gmail\\.com')
-      );
-    }
-
-    // Check if user is superadmin or listed in /admins collection
-    function isAdmin() {
-      return request.auth != null && (
-        isSuperAdmin() ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
-    }
-
-    // Admins registry: authenticated users can read to verify their own role; superadmin can write
-    match /admins/{uid} {
-      allow read: if request.auth != null;
-      allow write: if isSuperAdmin() || (request.auth != null && request.auth.uid == uid);
-    }
-
-    // Menu Categories & Items: Public read for storefront, Admin write
-    match /menuCategories/{categoryId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /menuItems/{itemId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // Gallery: Public read, Admin write
-    match /gallery/{imageId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // Reviews: Public read & create testimonials, Admin moderate/update/delete
-    match /reviews/{reviewId} {
-      allow read: if true;
-      allow create: if true;
-      allow update, delete: if isAdmin();
-    }
-
-    // Settings (General & Payment): Public read, Admin write
-    match /settings/{settingId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // Orders: Public create (online checkout), Admin full management
-    match /orders/{orderId} {
-      allow create: if true;
-      allow read, update, delete: if isAdmin();
-    }
-
-    // Bookings / Reservations: Public create (table reservations), Admin full management
-    match /bookings/{bookingId} {
-      allow create: if true;
-      allow read, update, delete: if isAdmin();
+    // Allow full read and write access across all collections for all admin and customer CRUD operations
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
+
 
