@@ -463,27 +463,27 @@ export function CartDrawer() {
                 </div>
                 <div>
                   <label className={labelCls} htmlFor="ord-phone">Mobile number *</label>
-                  <input id="ord-phone" type="tel" required value={form.phone} onChange={set("phone")} placeholder="(416) 555-0148" className={inputCls} />
+                  <input id="ord-phone" type="tel" required value={form.phone} onChange={set("phone")} placeholder="(647) 531-4715" className={inputCls} />
                 </div>
                 <div>
                   <label className={labelCls} htmlFor="ord-email">Email address</label>
-                  <input id="ord-email" type="email" value={form.email} onChange={set("email")} placeholder="jordan@example.com" className={inputCls} />
+                  <input id="ord-email" type="email" value={form.email} onChange={set("email")} placeholder="info@arju.ca" className={inputCls} />
                 </div>
 
                 {fulfillment === "delivery" ? (
                   <>
                     <div>
                       <label className={labelCls} htmlFor="ord-street">Street address *</label>
-                      <input id="ord-street" required value={form.street} onChange={set("street")} placeholder="284 Yonge Street" className={inputCls} />
+                      <input id="ord-street" required value={form.street} onChange={set("street")} placeholder="429 Yonge St #102" className={inputCls} />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className={labelCls} htmlFor="ord-unit">Apt / Unit</label>
-                        <input id="ord-unit" value={form.unit} onChange={set("unit")} placeholder="1204" className={inputCls} />
+                        <input id="ord-unit" value={form.unit} onChange={set("unit")} placeholder="102" className={inputCls} />
                       </div>
                       <div>
                         <label className={labelCls} htmlFor="ord-postal">Postal code *</label>
-                        <input id="ord-postal" required value={form.postal} onChange={set("postal")} placeholder="M5B 1K8" className={inputCls} />
+                        <input id="ord-postal" required value={form.postal} onChange={set("postal")} placeholder="M5B 1T1" className={inputCls} />
                       </div>
                     </div>
                   </>

@@ -24,9 +24,9 @@ export const HOURS = [
   { day: "Sunday", hours: "12:00 PM — 9:00 PM" },
 ];
 
-export const PHONE = "(416) 555-0192";
-export const EMAIL = "hello@arju.ca";
-export const ADDRESS = "284 Yonge Street, Toronto, ON M5B 1K8";
+export const PHONE = "(647) 531-4715";
+export const EMAIL = "info@arju.ca";
+export const ADDRESS = "429 Yonge St #102, Toronto, ON M5B 1T1, Canada";
 
 /* ------------------------------------------------------------------ */
 /*  IMAGE HELPERS                                                      */

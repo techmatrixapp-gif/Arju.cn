@@ -196,7 +196,7 @@ export default function Visit() {
                 </div>
                 <div className="mt-auto space-y-2 border-t border-cream/10 pt-5 text-xs font-light leading-relaxed text-cream/45">
                   <p>· Valet at the door after 5 PM</p>
-                  <p>· PCC parking garage at 245 Yonge St</p>
+                  <p>· Dedicated parking garage nearby on Yonge St</p>
                   <p>· Step-free access, dog-friendly patio</p>
                 </div>
               </div>

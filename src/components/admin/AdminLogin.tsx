@@ -105,7 +105,7 @@ export default function AdminLogin() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@arju.ca"
+                    placeholder="info@arju.ca"
                     className="w-full bg-charcoal border border-white/10 rounded-lg pl-9 pr-3 py-2.5 text-sm text-cream placeholder:text-stone/40 focus:outline-none focus:border-crimson focus:ring-1 focus:ring-crimson"
                   />
                 </div>
@@ -165,7 +165,7 @@ export default function AdminLogin() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@arju.ca"
+                    placeholder="info@arju.ca"
                     className="w-full bg-charcoal border border-white/10 rounded-lg pl-9 pr-3 py-2.5 text-sm text-cream placeholder:text-stone/40 focus:outline-none focus:border-crimson"
                   />
                 </div>
