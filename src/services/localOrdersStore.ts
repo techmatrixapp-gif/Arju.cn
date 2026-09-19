@@ -65,6 +65,30 @@ export function updateLocalOrderStatus(orderId: string, newStatus: OrderStatus):
   }
 }
 
+export function deleteLocalOrder(orderId: string): void {
+  try {
+    const orders = getLocalOrders();
+    const filtered = orders.filter((o) => o.id !== orderId && o.orderNo !== orderId);
+    localStorage.setItem(ORDERS_KEY, JSON.stringify(filtered));
+    window.dispatchEvent(new CustomEvent("arju_order_update", { detail: { id: orderId, deleted: true } }));
+    broadcastChannel?.postMessage({ type: "DELETE_ORDER", orderId });
+  } catch (e) {
+    console.warn("Failed to delete local order:", e);
+  }
+}
+
+export function deleteLocalBooking(bookingId: string): void {
+  try {
+    const bookings = getLocalBookings();
+    const filtered = bookings.filter((b) => b.id !== bookingId);
+    localStorage.setItem(BOOKINGS_KEY, JSON.stringify(filtered));
+    window.dispatchEvent(new CustomEvent("arju_booking_update", { detail: { id: bookingId, deleted: true } }));
+    broadcastChannel?.postMessage({ type: "DELETE_BOOKING", bookingId });
+  } catch (e) {
+    console.warn("Failed to delete local booking:", e);
+  }
+}
+
 // ---------------- BOOKINGS ---------------- //
 
 export function getLocalBookings(): Booking[] {

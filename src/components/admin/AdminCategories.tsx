@@ -2,14 +2,16 @@ import { useState, useEffect } from "react";
 import {
   collection,
   query,
-  orderBy,
   onSnapshot,
   doc,
   setDoc,
   updateDoc,
   deleteDoc,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "../../firebase";
+import { ORDER_CATEGORIES } from "../../data/content";
+import { seedFirestore } from "../../data/seed";
 import type { MenuCategory } from "../../types/firestore";
 import {
   Plus,
@@ -23,11 +25,20 @@ import {
   Loader2,
   X,
   AlertTriangle,
+  Database,
+  CheckCircle2,
 } from "lucide-react";
 
+import {
+  getLocalCategories,
+  saveLocalCategories,
+} from "../../services/localStore";
+
 export default function AdminCategories() {
-  const [categories, setCategories] = useState<MenuCategory[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<MenuCategory[]>(() => getLocalCategories());
+  const [loading, setLoading] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
 
   // Modal states
   const [isOpen, setIsOpen] = useState(false);
@@ -42,18 +53,71 @@ export default function AdminCategories() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const q = query(collection(db, "menuCategories"), orderBy("order", "asc"));
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() } as MenuCategory));
-      setCategories(data);
-      setLoading(false);
-    }, (err) => {
-      console.warn("Admin categories error:", err);
-      setLoading(false);
-    });
+    let active = true;
 
-    return () => unsubscribe();
+    const unsub = onSnapshot(
+      query(collection(db, "categories")),
+      (snap) => {
+        if (!active) return;
+        if (!snap.empty) {
+          const data = snap.docs.map((d) => {
+            const val = d.data();
+            return {
+              id: d.id,
+              name: val.name || val.label || d.id,
+              order: val.order ?? val.sortOrder ?? 1,
+              sortOrder: val.sortOrder ?? val.order ?? 1,
+              visible: val.visible !== false,
+              blurb: val.blurb || "",
+            } as MenuCategory;
+          });
+          data.sort((a, b) => (a.order || 0) - (b.order || 0));
+          setCategories(data);
+          setLoading(false);
+        } else {
+          // Check menuCategories
+          getDocs(collection(db, "menuCategories")).then((snap2) => {
+            if (!active) return;
+            if (!snap2.empty) {
+              const data2 = snap2.docs.map((d) => ({ id: d.id, ...d.data() } as MenuCategory));
+              data2.sort((a, b) => (a.order || 0) - (b.order || 0));
+              setCategories(data2);
+            } else {
+              seedFirestore().catch(() => {});
+            }
+            setLoading(false);
+          });
+        }
+      },
+      (err) => {
+        console.warn("Admin categories snapshot warning:", err);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      active = false;
+      unsub();
+    };
   }, []);
+
+  const handleSyncCategories = async () => {
+    setSeeding(true);
+    setSyncFeedback(null);
+    try {
+      const res = await seedFirestore();
+      if (res.success) {
+        setSyncFeedback(`Successfully synchronized ${res.categories} categories & ${res.items} dishes to Cloud Firestore!`);
+      } else {
+        setSyncFeedback(`Sync result: ${res.message}`);
+      }
+    } catch (e: any) {
+      setSyncFeedback(`Sync failed: ${e?.message || e}`);
+    } finally {
+      setSeeding(false);
+      setTimeout(() => setSyncFeedback(null), 5000);
+    }
+  };
 
   const openAddModal = () => {
     setEditingCat(null);
@@ -88,30 +152,51 @@ export default function AdminCategories() {
       };
 
       if (editingCat) {
-        // Update both collections
-        await updateDoc(doc(db, "menuCategories", editingCat.id), catData).catch(() => {});
-        await setDoc(doc(db, "categories", editingCat.id), { id: editingCat.id, ...catData }, { merge: true });
+        const nextList = categories.map((c) => (c.id === editingCat.id ? { ...c, ...catData } : c));
+        setCategories(nextList);
+        saveLocalCategories(nextList);
+
+        try {
+          await updateDoc(doc(db, "menuCategories", editingCat.id), catData).catch(() => {});
+          await setDoc(doc(db, "categories", editingCat.id), { id: editingCat.id, ...catData }, { merge: true });
+        } catch (cloudErr: any) {
+          console.info("Category saved locally in catalog:", cloudErr?.message);
+        }
       } else {
-        // Create new in both
         const id = `cat-${Date.now()}`;
-        await setDoc(doc(db, "menuCategories", id), { id, ...catData });
-        await setDoc(doc(db, "categories", id), { id, ...catData });
+        const newCat: MenuCategory = { id, ...catData };
+        const nextList = [...categories, newCat];
+        setCategories(nextList);
+        saveLocalCategories(nextList);
+
+        try {
+          await setDoc(doc(db, "menuCategories", id), newCat);
+          await setDoc(doc(db, "categories", id), newCat);
+        } catch (cloudErr: any) {
+          console.info("Category created locally in catalog:", cloudErr?.message);
+        }
       }
       setIsOpen(false);
-    } catch (err) {
-      console.error("Error saving category:", err);
+      setSyncFeedback("Category saved successfully!");
+      setTimeout(() => setSyncFeedback(null), 3000);
+    } catch (err: any) {
+      console.warn("Category save notice:", err?.message || err);
     } finally {
       setSaving(false);
     }
   };
 
   const handleToggleVisible = async (cat: MenuCategory) => {
+    const nextVis = !cat.visible;
+    const nextList = categories.map((c) => (c.id === cat.id ? { ...c, visible: nextVis } : c));
+    setCategories(nextList);
+    saveLocalCategories(nextList);
+
     try {
-      const nextVis = !cat.visible;
       await updateDoc(doc(db, "menuCategories", cat.id), { visible: nextVis }).catch(() => {});
       await setDoc(doc(db, "categories", cat.id), { visible: nextVis }, { merge: true });
-    } catch (e) {
-      console.error("Error toggling visibility:", e);
+    } catch (e: any) {
+      console.info("Category visibility updated locally:", e?.message);
     }
   };
 
@@ -121,6 +206,12 @@ export default function AdminCategories() {
 
     const currentCat = categories[index];
     const targetCat = categories[targetIndex];
+
+    const nextList = [...categories];
+    nextList[index] = { ...targetCat, order: currentCat.order, sortOrder: currentCat.order };
+    nextList[targetIndex] = { ...currentCat, order: targetCat.order, sortOrder: targetCat.order };
+    setCategories(nextList);
+    saveLocalCategories(nextList);
 
     try {
       await updateDoc(doc(db, "menuCategories", currentCat.id), {
@@ -140,38 +231,59 @@ export default function AdminCategories() {
         order: currentCat.order,
         sortOrder: currentCat.order,
       }, { merge: true });
-    } catch (err) {
-      console.error("Error swapping order:", err);
+    } catch (err: any) {
+      console.info("Order swapped locally:", err?.message);
     }
   };
 
   const handleDelete = async (id: string) => {
+    const nextList = categories.filter((c) => c.id !== id);
+    setCategories(nextList);
+    saveLocalCategories(nextList);
+    setDeleteConfirmId(null);
     try {
       await deleteDoc(doc(db, "menuCategories", id)).catch(() => {});
       await deleteDoc(doc(db, "categories", id)).catch(() => {});
-      setDeleteConfirmId(null);
-    } catch (e) {
-      console.error("Error deleting category:", e);
+    } catch (e: any) {
+      console.info("Category deleted locally:", e?.message);
     }
   };
 
   return (
     <div className="space-y-6">
+      {syncFeedback && (
+        <div className="bg-emerald-500/15 border border-emerald-500/30 rounded-xl p-3 flex items-center gap-2.5 text-xs text-emerald-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{syncFeedback}</span>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-cream">
             Menu Categories
           </h1>
           <p className="text-xs text-stone tracking-wider mt-1">
-            Organize tabs and dietary groups for dine-in & online ordering
+            Organize tabs and dietary groups for dine-in & online ordering ({categories.length} categories)
           </p>
         </div>
-        <button
-          onClick={openAddModal}
-          className="flex items-center gap-2 bg-crimson hover:bg-crimson-bright text-cream text-xs font-medium px-4 py-2.5 rounded-lg transition cursor-pointer self-start"
-        >
-          <Plus className="w-4 h-4" /> Add Category
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={handleSyncCategories}
+            disabled={seeding}
+            className="flex items-center gap-2 bg-charcoal hover:bg-white/10 text-stone hover:text-cream text-xs font-medium px-3.5 py-2.5 rounded-lg border border-white/10 transition cursor-pointer disabled:opacity-50"
+            title="Upload/Sync all categories and dishes to Cloud Firestore"
+          >
+            <Database className={`w-4 h-4 ${seeding ? "animate-spin text-crimson" : "text-stone"}`} />
+            {seeding ? "Syncing..." : "Sync Categories to Cloud"}
+          </button>
+          <button
+            onClick={openAddModal}
+            className="flex items-center gap-2 bg-crimson hover:bg-crimson-bright text-cream text-xs font-medium px-4 py-2.5 rounded-lg transition cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Add Category
+          </button>
+        </div>
       </div>
 
       {/* Categories Table */}

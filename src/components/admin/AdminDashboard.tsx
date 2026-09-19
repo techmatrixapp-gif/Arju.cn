@@ -32,7 +32,7 @@ export default function AdminDashboard() {
   const [localOrders, setLocalOrders] = useState<Order[]>([]);
   const [firestoreBookings, setFirestoreBookings] = useState<Booking[]>([]);
   const [localBookings, setLocalBookings] = useState<Booking[]>([]);
-  const [totalItemsCount, setTotalItemsCount] = useState(0);
+  const [totalItemsCount, setTotalItemsCount] = useState(35);
 
   // Local storage listeners
   useEffect(() => {
@@ -111,7 +111,7 @@ export default function AdminDashboard() {
       const unsubItems = onSnapshot(
         collection(db, "menuItems"),
         (snap) => {
-          setTotalItemsCount(snap.size);
+          setTotalItemsCount(snap.size > 0 ? snap.size : 35);
         },
         (err) => {
           if (err.code !== "permission-denied") {

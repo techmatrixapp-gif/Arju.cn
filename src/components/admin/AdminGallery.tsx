@@ -23,11 +23,66 @@ import {
   ArrowUp,
   ArrowDown,
   Image as ImageIcon,
+  Database,
+  CheckCircle2,
 } from "lucide-react";
 
+const DEFAULT_GALLERY_IMAGES: GalleryImage[] = [
+  {
+    id: "g-1",
+    imageUrl: "https://images.pexels.com/photos/17650170/pexels-photo-17650170.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=800&w=800",
+    caption: "Signature Chicken Shawarma Plate",
+    order: 1,
+  },
+  {
+    id: "g-2",
+    imageUrl: "https://images.pexels.com/photos/29631417/pexels-photo-29631417.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=800&w=800",
+    caption: "Handi Dum Biryani",
+    order: 2,
+  },
+  {
+    id: "g-3",
+    imageUrl: "https://images.pexels.com/photos/28945103/pexels-photo-28945103.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=800&w=800",
+    caption: "Woodstone Artisan Pizza",
+    order: 3,
+  },
+  {
+    id: "g-4",
+    imageUrl: "https://images.pexels.com/photos/29039081/pexels-photo-29039081.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=800&w=800",
+    caption: "Penne all'Arrabbiata",
+    order: 4,
+  },
+  {
+    id: "g-5",
+    imageUrl: "https://images.pexels.com/photos/260922/pexels-photo-260922.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=800&w=800",
+    caption: "Warm Evening Dining Room",
+    order: 5,
+  },
+  {
+    id: "g-6",
+    imageUrl: "https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=800&w=800",
+    caption: "Screaming-Hot Wok Station",
+    order: 6,
+  },
+  {
+    id: "g-7",
+    imageUrl: "https://images.pexels.com/photos/1566837/pexels-photo-1566837.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=800&w=800",
+    caption: "Handmade Artisanal Crust",
+    order: 7,
+  },
+  {
+    id: "g-8",
+    imageUrl: "https://images.pexels.com/photos/29631426/pexels-photo-29631426.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=800&w=800",
+    caption: "Crispy Chilli Chicken",
+    order: 8,
+  },
+];
+
 export default function AdminGallery() {
-  const [images, setImages] = useState<GalleryImage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [images, setImages] = useState<GalleryImage[]>(() => DEFAULT_GALLERY_IMAGES);
+  const [loading, setLoading] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
 
   // Modal
   const [isOpen, setIsOpen] = useState(false);
@@ -43,20 +98,51 @@ export default function AdminGallery() {
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
     const q = query(collection(db, "gallery"), orderBy("order", "asc"));
     const unsubscribe = onSnapshot(
       q,
       (snap) => {
-        setImages(snap.docs.map((d) => ({ id: d.id, ...d.data() } as GalleryImage)));
-        setLoading(false);
+        if (!active) return;
+        if (!snap.empty) {
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as GalleryImage));
+          list.sort((a, b) => (a.order || 0) - (b.order || 0));
+          setImages(list);
+          setLoading(false);
+        } else {
+          // Auto-seed to firestore so it persists
+          DEFAULT_GALLERY_IMAGES.forEach((img) => {
+            setDoc(doc(db, "gallery", img.id), img).catch(() => {});
+          });
+          setLoading(false);
+        }
       },
       (err) => {
-        console.warn("Gallery error:", err);
+        console.warn("Gallery snapshot warning:", err);
         setLoading(false);
       }
     );
-    return () => unsubscribe();
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
+
+  const handleSyncGallery = async () => {
+    setSeeding(true);
+    setSyncFeedback(null);
+    try {
+      for (const img of DEFAULT_GALLERY_IMAGES) {
+        await setDoc(doc(db, "gallery", img.id), img);
+      }
+      setSyncFeedback(`Successfully synchronized ${DEFAULT_GALLERY_IMAGES.length} gallery photos to Firestore!`);
+    } catch (e: any) {
+      setSyncFeedback(`Sync failed: ${e?.message || e}`);
+    } finally {
+      setSeeding(false);
+      setTimeout(() => setSyncFeedback(null), 5000);
+    }
+  };
 
   const openAddModal = () => {
     setEditingImage(null);
@@ -153,21 +239,39 @@ export default function AdminGallery() {
 
   return (
     <div className="space-y-6">
+      {syncFeedback && (
+        <div className="bg-emerald-500/15 border border-emerald-500/30 rounded-xl p-3 flex items-center gap-2.5 text-xs text-emerald-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{syncFeedback}</span>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-cream">
             Restaurant Gallery
           </h1>
           <p className="text-xs text-stone tracking-wider mt-1">
-            Showcase interior atmosphere, culinary craft, and dining moments
+            Showcase interior atmosphere, culinary craft, and dining moments ({images.length} photos)
           </p>
         </div>
-        <button
-          onClick={openAddModal}
-          className="flex items-center gap-2 bg-crimson hover:bg-crimson-bright text-cream text-xs font-medium px-4 py-2.5 rounded-lg transition cursor-pointer self-start"
-        >
-          <Plus className="w-4 h-4" /> Add Photo
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={handleSyncGallery}
+            disabled={seeding}
+            className="flex items-center gap-2 bg-charcoal hover:bg-white/10 text-stone hover:text-cream text-xs font-medium px-3.5 py-2.5 rounded-lg border border-white/10 transition cursor-pointer disabled:opacity-50"
+            title="Upload default showcase gallery to Cloud Firestore"
+          >
+            <Database className={`w-4 h-4 ${seeding ? "animate-spin text-crimson" : "text-stone"}`} />
+            {seeding ? "Syncing..." : "Sync Photos to Cloud"}
+          </button>
+          <button
+            onClick={openAddModal}
+            className="flex items-center gap-2 bg-crimson hover:bg-crimson-bright text-cream text-xs font-medium px-4 py-2.5 rounded-lg transition cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Add Photo
+          </button>
+        </div>
       </div>
 
       {loading ? (

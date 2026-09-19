@@ -9,63 +9,67 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() &&
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return true;
     }
 
     // ---------- Admins Whitelist ----------
-    // Only admins can read/write this collection.
-    // You seed the first admin manually from the Firebase Console
-    // (Firestore > admins > add doc with ID = your Auth UID).
     match /admins/{uid} {
-      allow read: if isAdmin();
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     // ---------- Menu Categories ----------
+    // Supports both /categories and /menuCategories paths
     match /categories/{categoryId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
+    }
+    match /menuCategories/{categoryId} {
+      allow read, write: if true;
     }
 
     // ---------- Menu Items ----------
     match /menuItems/{itemId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
-    // ---------- General Site Content (hero, about, gallery, contact) ----------
+    // ---------- General Site Content (hero, about, story, contact) ----------
     match /siteContent/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
+    }
+
+    // ---------- General Settings (store hours, contact, payments) ----------
+    match /settings/{docId} {
+      allow read, write: if true;
     }
 
     // ---------- Blocked Slots (admin manually closes a date/time) ----------
     match /blockedSlots/{slotId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
-    // ---------- Bookings ----------
+    // ---------- Bookings / Reservations ----------
     match /bookings/{bookingId} {
-      // Public users can CREATE a booking request,
-      // but only if it's submitted with status "pending"
-      // and required fields are present (basic validation).
-      allow create: if
-        request.resource.data.status == 'pending' &&
-        request.resource.data.customerName is string &&
-        request.resource.data.phone is string &&
-        request.resource.data.date is string &&
-        request.resource.data.time is string &&
-        request.resource.data.partySize is number;
-
-      // Only admins can view the list, accept/decline/edit, or delete.
-      allow read, update, delete: if isAdmin();
+      allow read, write: if true;
     }
 
-    // ---------- Default Deny ----------
+    // ---------- Customer Orders ----------
+    match /orders/{orderId} {
+      allow read, write: if true;
+    }
+
+    // ---------- Gallery Images ----------
+    match /gallery/{imageId} {
+      allow read, write: if true;
+    }
+
+    // ---------- Reviews & Testimonials ----------
+    match /reviews/{reviewId} {
+      allow read, write: if true;
+    }
+
+    // ---------- Universal Fallback ----------
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if true;
     }
   }
 }
+

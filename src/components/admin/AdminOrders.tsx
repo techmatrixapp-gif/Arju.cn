@@ -6,6 +6,8 @@ import {
   onSnapshot,
   doc,
   updateDoc,
+  deleteDoc,
+  setDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import type { Order, OrderStatus } from "../../types/firestore";
@@ -13,6 +15,8 @@ import {
   getLocalOrders,
   updateLocalOrderStatus,
   syncLocalOrdersToFirestore,
+  deleteLocalOrder,
+  saveLocalOrder,
 } from "../../services/localOrdersStore";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import {
@@ -27,6 +31,8 @@ import {
   MapPin,
   RefreshCw,
   AlertTriangle,
+  Trash2,
+  Plus,
 } from "lucide-react";
 
 export default function AdminOrders() {
@@ -162,6 +168,56 @@ export default function AdminOrders() {
     }
   };
 
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!window.confirm("Are you sure you want to permanently remove this order?")) return;
+    deleteLocalOrder(orderId);
+    setLocalOrders(getLocalOrders());
+    setFirestoreOrders((prev) => prev.filter((o) => o.id !== orderId && o.orderNo !== orderId));
+    try {
+      await deleteDoc(doc(db, "orders", orderId)).catch(() => {});
+    } catch (e) {
+      console.warn("Delete order error:", e);
+    }
+    if (selectedOrder && (selectedOrder.id === orderId || selectedOrder.orderNo === orderId)) {
+      setSelectedOrder(null);
+    }
+  };
+
+  const handleCreateSampleOrder = async () => {
+    const newId = `ord-${Date.now().toString().slice(-6)}`;
+    const sampleOrder: Order = {
+      id: newId,
+      orderNo: newId,
+      type: "pickup",
+      customer: {
+        name: "Aarav Patel",
+        phone: "(647) 555-0198",
+        email: "aarav.p@example.com",
+      },
+      items: [
+        { itemId: "item-biryani-lamb", name: "Lamb Dum Biryani", price: 21.99, qty: 1 },
+        { itemId: "item-margherita-doc", name: "Margherita D.O.C. Pizza", price: 18.99, qty: 1 },
+      ],
+      subtotal: 40.98,
+      tax: 5.33,
+      deliveryFee: 0,
+      total: 52.46,
+      orderStatus: "new",
+      paymentStatus: "paid",
+      paymentMethod: "card",
+      paymentRef: `pi_demo_${Date.now().toString().slice(-6)}`,
+      createdAt: new Date().toISOString(),
+    };
+
+    saveLocalOrder(sampleOrder);
+    setLocalOrders(getLocalOrders());
+    try {
+      await setDoc(doc(db, "orders", newId), sampleOrder);
+    } catch (e) {
+      console.warn("Create sample order error:", e);
+    }
+  };
+
   const todayStr = new Date().toISOString().split("T")[0];
 
   const filteredOrders = orders.filter((order) => {
@@ -223,7 +279,15 @@ export default function AdminOrders() {
             Real-time feed of online takeout and delivery orders
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleCreateSampleOrder}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-white/10 bg-charcoal text-stone hover:text-cream flex items-center gap-1.5 transition"
+            title="Create a sample order for testing"
+          >
+            <Plus className="w-3.5 h-3.5 text-crimson" />
+            Add Test Order
+          </button>
           {localOrders.length > 0 && (
             <button
               onClick={handleManualSync}
@@ -388,14 +452,23 @@ export default function AdminOrders() {
                         </select>
                       </td>
 
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => setSelectedOrder(order)}
-                          className="p-1.5 text-stone hover:text-cream hover:bg-charcoal rounded transition"
-                          title="View order details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => setSelectedOrder(order)}
+                            className="p-1.5 text-stone hover:text-cream hover:bg-charcoal rounded transition"
+                            title="View order details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteOrder(order.id || order.orderNo || "")}
+                            className="p-1.5 text-stone hover:text-crimson hover:bg-charcoal rounded transition"
+                            title="Delete order"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -561,7 +634,14 @@ export default function AdminOrders() {
               )}
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-between items-center pt-2">
+              <button
+                onClick={() => handleDeleteOrder(selectedOrder.id || selectedOrder.orderNo || "")}
+                className="px-3 py-2 bg-crimson/20 hover:bg-crimson/30 text-crimson text-xs font-medium rounded-lg transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete Order
+              </button>
               <button
                 onClick={() => setSelectedOrder(null)}
                 className="px-4 py-2 bg-charcoal hover:bg-white/10 text-xs font-medium text-cream rounded-lg transition"
