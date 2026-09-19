@@ -1,11 +1,78 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow full read and write access across all collections for all admin and customer CRUD operations
-    match /{document=**} {
-      allow read, write: if true;
+
+    // Helper: Verify if request is from an authorized admin
+    function isAdmin() {
+      return request.auth != null && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == "techmatrix.app@gmail.com"
+      );
+    }
+
+    // Menu items and categories: Public read, Admin write
+    match /menuItems/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /categories/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /menuCategories/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Site content CMS: Public read, Admin write
+    match /siteContent/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Settings & hours: Public read, Admin write
+    match /settings/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Blocked reservation slots: Public read (to disable time slots), Admin write
+    match /blockedSlots/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Table Bookings: Public can create pending reservations, Admin full management
+    match /bookings/{id} {
+      allow create: if request.resource.data.status == 'pending';
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Customer orders: Public create checkout, Admin full management
+    match /orders/{id} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Gallery images: Public read, Admin write
+    match /gallery/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Reviews & Testimonials: Public read and submit, Admin moderate/update/delete
+    match /reviews/{id} {
+      allow read, create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    // Admins whitelist registry
+    match /admins/{id} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin() || (request.auth != null && request.auth.uid == id);
     }
   }
 }
+
 
 

@@ -34,21 +34,25 @@ export async function seedFirestore(
 
     for (const cat of ORDER_CATEGORIES) {
       const catRef = doc(db, "menuCategories", cat.id);
+      const aliasCatRef = doc(db, "categories", cat.id);
       const catData: MenuCategory = {
         id: cat.id,
         name: cat.label,
         order: categoryOrder++,
+        sortOrder: categoryOrder,
         visible: true,
         blurb: cat.blurb || "",
       };
       await setDoc(catRef, catData, { merge: true });
+      await setDoc(aliasCatRef, catData, { merge: true });
 
       // Add items for this category
       for (const item of cat.items) {
         const itemRef = doc(db, "menuItems", item.id);
-        const itemData: MenuItem = {
+        const itemData: any = {
           id: item.id,
           categoryId: cat.id,
+          category: cat.id,
           name: item.name,
           description: item.desc || "",
           price: Number(item.price) || 0,
@@ -57,7 +61,9 @@ export async function seedFirestore(
           imageUrl: item.img || "",
           available: true,
           order: itemOrder++,
+          sortOrder: itemOrder,
           popular: !!item.popular,
+          updatedAt: new Date().toISOString(),
         };
         await setDoc(itemRef, itemData, { merge: true });
       }
@@ -160,8 +166,37 @@ export async function seedFirestore(
       heroHeadline: "A modern celebration of classic Canadian & world flavours.",
       storyText:
         "Rooted in Toronto's vibrant food scene, ARJU brings together slow-layered biryanis, wok-fired Hakka classics, carved shawarma, and stone-baked pizzas crafted with precision and passion.",
+      slotDurationMinutes: 90,
+      maxPartySize: 12,
     };
     await setDoc(settingsRef, settingsData, { merge: true });
+
+    // 5. Seed siteContent CMS
+    onProgress?.("Seeding site content CMS...");
+    const siteContentRef = doc(db, "siteContent", "main");
+    await setDoc(
+      siteContentRef,
+      {
+        heroTitle: "Downtown Toronto's Halal Wok & Grill",
+        heroSubtitle: "Stone-baked pizza, slow-layered biryani, wok-tossed Hakka classics and shawarma carved to order — made to order on Yonge Street.",
+        heroImage: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1920&q=80",
+        aboutText: "ARJU opened its doors on Yonge Street with a simple conviction: the food Toronto loves most is the food the world brought with it. We cook across traditions because that's how this city eats.",
+        aboutFounders: "Family-run, multicultural kitchen serving Toronto since 2016.",
+        contactInfo: {
+          phone: PHONE,
+          email: EMAIL,
+          address: ADDRESS,
+          hours: "Mon-Sat: 11:30 AM — 10:30 PM, Sun: 12:00 PM — 9:00 PM",
+        },
+        socialLinks: {
+          instagram: "https://instagram.com/arjudelights",
+          facebook: "https://facebook.com/arjudelights",
+          tiktok: "https://tiktok.com/@arjudelights",
+        },
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
 
     onProgress?.("Seeding complete! All collections populated.");
     return {

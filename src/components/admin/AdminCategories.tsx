@@ -79,24 +79,23 @@ export default function AdminCategories() {
     setSaving(true);
 
     try {
+      const catData = {
+        name: formName.trim(),
+        order: Number(formOrder),
+        sortOrder: Number(formOrder),
+        visible: formVisible,
+        blurb: formBlurb.trim(),
+      };
+
       if (editingCat) {
-        // Update
-        await updateDoc(doc(db, "menuCategories", editingCat.id), {
-          name: formName.trim(),
-          order: Number(formOrder),
-          visible: formVisible,
-          blurb: formBlurb.trim(),
-        });
+        // Update both collections
+        await updateDoc(doc(db, "menuCategories", editingCat.id), catData).catch(() => {});
+        await setDoc(doc(db, "categories", editingCat.id), { id: editingCat.id, ...catData }, { merge: true });
       } else {
-        // Create new
+        // Create new in both
         const id = `cat-${Date.now()}`;
-        await setDoc(doc(db, "menuCategories", id), {
-          id,
-          name: formName.trim(),
-          order: Number(formOrder),
-          visible: formVisible,
-          blurb: formBlurb.trim(),
-        });
+        await setDoc(doc(db, "menuCategories", id), { id, ...catData });
+        await setDoc(doc(db, "categories", id), { id, ...catData });
       }
       setIsOpen(false);
     } catch (err) {
@@ -108,9 +107,9 @@ export default function AdminCategories() {
 
   const handleToggleVisible = async (cat: MenuCategory) => {
     try {
-      await updateDoc(doc(db, "menuCategories", cat.id), {
-        visible: !cat.visible,
-      });
+      const nextVis = !cat.visible;
+      await updateDoc(doc(db, "menuCategories", cat.id), { visible: nextVis }).catch(() => {});
+      await setDoc(doc(db, "categories", cat.id), { visible: nextVis }, { merge: true });
     } catch (e) {
       console.error("Error toggling visibility:", e);
     }
@@ -126,10 +125,21 @@ export default function AdminCategories() {
     try {
       await updateDoc(doc(db, "menuCategories", currentCat.id), {
         order: targetCat.order,
-      });
+        sortOrder: targetCat.order,
+      }).catch(() => {});
+      await setDoc(doc(db, "categories", currentCat.id), {
+        order: targetCat.order,
+        sortOrder: targetCat.order,
+      }, { merge: true });
+
       await updateDoc(doc(db, "menuCategories", targetCat.id), {
         order: currentCat.order,
-      });
+        sortOrder: currentCat.order,
+      }).catch(() => {});
+      await setDoc(doc(db, "categories", targetCat.id), {
+        order: currentCat.order,
+        sortOrder: currentCat.order,
+      }, { merge: true });
     } catch (err) {
       console.error("Error swapping order:", err);
     }
@@ -137,7 +147,8 @@ export default function AdminCategories() {
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteDoc(doc(db, "menuCategories", id));
+      await deleteDoc(doc(db, "menuCategories", id)).catch(() => {});
+      await deleteDoc(doc(db, "categories", id)).catch(() => {});
       setDeleteConfirmId(null);
     } catch (e) {
       console.error("Error deleting category:", e);

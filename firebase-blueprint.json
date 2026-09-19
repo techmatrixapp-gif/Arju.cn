@@ -98,15 +98,43 @@
         "heroHeadline": { "type": "string" },
         "storyText": { "type": "string" }
       }
+    },
+    "BlockedSlot": {
+      "title": "Blocked Slot",
+      "description": "Blocked date and time for reservations",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "required": ["date", "time", "reason"]
+    },
+    "SiteContent": {
+      "title": "Site Content CMS",
+      "description": "Customizable homepage hero, about, and brand content",
+      "type": "object",
+      "properties": {
+        "heroTitle": { "type": "string" },
+        "heroSubtitle": { "type": "string" },
+        "heroImage": { "type": "string" },
+        "aboutText": { "type": "string" },
+        "aboutFounders": { "type": "string" },
+        "contactInfo": { "type": "object" },
+        "socialLinks": { "type": "object" }
+      }
     }
   },
   "firestore": {
     "/menuCategories/{categoryId}": { "schema": "MenuCategory", "description": "Menu categories" },
+    "/categories/{categoryId}": { "schema": "MenuCategory", "description": "Categories alias" },
     "/menuItems/{itemId}": { "schema": "MenuItem", "description": "Menu items" },
     "/orders/{orderId}": { "schema": "Order", "description": "Online customer orders" },
     "/bookings/{bookingId}": { "schema": "Booking", "description": "Table bookings" },
+    "/blockedSlots/{slotId}": { "schema": "BlockedSlot", "description": "Blocked reservation slots" },
     "/gallery/{imageId}": { "schema": "GalleryImage", "description": "Gallery images" },
     "/reviews/{reviewId}": { "schema": "Review", "description": "Customer testimonials" },
+    "/siteContent/{id}": { "schema": "SiteContent", "description": "Site content CMS" },
     "/settings/general": { "schema": "GeneralSettings", "description": "Site settings" },
     "/admins/{uid}": { "schema": "AdminUser", "description": "Authorized admin users" }
   }

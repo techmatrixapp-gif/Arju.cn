@@ -18,6 +18,7 @@ import {
   Menu as MenuIcon,
   X,
   Bell,
+  FileText,
 } from "lucide-react";
 
 export function RequireAdmin({ children }: { children: React.ReactNode }) {
@@ -107,6 +108,7 @@ export default function AdminLayout() {
     },
     { label: "Gallery", href: "/admin/gallery", icon: GalleryIcon },
     { label: "Reviews", href: "/admin/reviews", icon: Star },
+    { label: "Site Content", href: "/admin/content", icon: FileText },
     { label: "Settings", href: "/admin/settings", icon: Settings },
   ];
 

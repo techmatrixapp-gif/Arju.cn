@@ -1,13 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { collection, addDoc } from "firebase/firestore";
-import { db } from "../firebase";
+import { Link } from "react-router-dom";
 import { cn } from "../utils/cn";
 import Reveal from "./Reveal";
 import { LEAF } from "./Logo";
 import { IMAGES } from "../data/content";
-import { useSettings } from "../services/firestoreData";
-import { saveLocalBooking } from "../services/localOrdersStore";
-import type { Booking } from "../types/firestore";
+import { useSettings, createReservationBooking } from "../services/firestoreData";
 import { Loader2, CheckCircle2 } from "lucide-react";
 
 /* hours indexed by Date.getDay(): 0 = Sunday */
@@ -58,40 +55,35 @@ export default function Visit() {
     const partySize = parseInt(partySizeStr.replace(/[^0-9]/g, "")) || 2;
     const notes = String(fd.get("notes") || "").trim();
 
-    const bookingId = `book-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
-    const newBooking: Booking = {
-      id: bookingId,
-      name,
-      phone,
-      email,
-      partySize,
-      date,
-      time,
-      notes,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
-
-    // Save to local cache so admin dashboard updates immediately
-    saveLocalBooking(newBooking);
-
     try {
-      const docRef = await addDoc(collection(db, "bookings"), newBooking);
-      if (docRef?.id) {
-        newBooking.id = docRef.id;
-        saveLocalBooking(newBooking);
-      }
-    } catch (err: any) {
-      console.warn("Could not write booking to Firestore (cached locally):", err);
-    }
+      const result = await createReservationBooking({
+        customerName: name,
+        phone,
+        email,
+        partySize,
+        date,
+        time,
+        notes,
+      });
 
-    setSent({
-      name,
-      date,
-      time,
-      partySize,
-    });
-    setSubmitting(false);
+      if (!result.success) {
+        setError(result.message);
+        setSubmitting(false);
+        return;
+      }
+
+      setSent({
+        name,
+        date,
+        time,
+        partySize,
+      });
+    } catch (err: any) {
+      console.error("Booking error:", err);
+      setError(err?.message || "Failed to submit booking. Please call us directly.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const hoursList = settings.storeHours || [];
@@ -217,7 +209,10 @@ export default function Visit() {
                 <form onSubmit={onSubmit} className="relative flex h-full flex-col">
                   <h3 className="font-display text-2xl font-bold text-cream">Reserve a table</h3>
                   <p className="mt-2 text-xs font-light text-cream/75">
-                    Parties of 8 or more — call us directly at {settings.phone}.
+                    Parties of 8 or more — call us directly at {settings.phone}. Or{" "}
+                    <Link to="/booking" className="underline font-semibold text-cream hover:text-white">
+                      view interactive calendar →
+                    </Link>
                   </p>
 
                   {error && (

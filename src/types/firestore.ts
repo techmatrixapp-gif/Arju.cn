@@ -1,5 +1,5 @@
 export type OrderStatus = "new" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
-export type BookingStatus = "pending" | "confirmed" | "cancelled";
+export type BookingStatus = "pending" | "confirmed" | "declined" | "cancelled";
 
 export interface MenuCategory {
   id: string;
@@ -8,6 +8,7 @@ export interface MenuCategory {
   visible: boolean;
   blurb?: string;
   label?: string;
+  sortOrder?: number;
 }
 
 export interface MenuItemVariant {
@@ -26,9 +27,12 @@ export interface MenuItem {
   imageUrl: string;
   available: boolean;
   order: number;
+  sortOrder?: number;
   group?: string;
   popular?: boolean;
   desc?: string;
+  createdAt?: any;
+  updatedAt?: any;
 }
 
 export interface OrderItem {
@@ -71,7 +75,8 @@ export interface Order {
 
 export interface Booking {
   id: string;
-  name: string;
+  customerName?: string;
+  name?: string;
   phone: string;
   email: string;
   partySize: number;
@@ -79,8 +84,18 @@ export interface Booking {
   time: string;
   notes?: string;
   internalNotes?: string;
+  tableNumber?: string;
   status: BookingStatus;
   createdAt: any;
+  updatedAt?: any;
+}
+
+export interface BlockedSlot {
+  id: string;
+  date: string;
+  time: string;
+  reason: string;
+  createdAt?: any;
 }
 
 export interface GalleryImage {
@@ -127,7 +142,30 @@ export interface GeneralSettings {
   };
   heroHeadline: string;
   storyText: string;
+  slotDurationMinutes?: number;
+  maxPartySize?: number;
   paymentSettings?: PaymentSettings;
+}
+
+export interface SiteContent {
+  heroTitle?: string;
+  heroSubtitle?: string;
+  heroImage?: string;
+  aboutText?: string;
+  aboutFounders?: string;
+  galleryImages?: { url: string; caption: string }[];
+  contactInfo?: {
+    phone?: string;
+    email?: string;
+    address?: string;
+    hours?: string;
+  };
+  socialLinks?: {
+    instagram?: string;
+    facebook?: string;
+    tiktok?: string;
+  };
+  updatedAt?: any;
 }
 
 export interface AdminUser {
@@ -136,3 +174,4 @@ export interface AdminUser {
   role?: string;
   createdAt?: any;
 }
+

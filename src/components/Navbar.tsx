@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "../utils/cn";
 import Logo from "./Logo";
 import { useCart } from "../context/CartContext";
-import { NAV_LINKS, PHONE, ADDRESS } from "../data/content";
+import { PHONE, ADDRESS } from "../data/content";
 
 function BagIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -13,11 +14,20 @@ function BagIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+const PUBLIC_PAGES = [
+  { label: "Home", path: "/" },
+  { label: "Menu", path: "/menu" },
+  { label: "Reserve", path: "/booking" },
+  { label: "Story", path: "/about" },
+  { label: "Gallery", path: "/gallery" },
+  { label: "Contact", path: "/contact" },
+];
+
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState("home");
   const { count, openCart } = useCart();
+  const location = useLocation();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -26,24 +36,7 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // lightweight scroll-spy
-  useEffect(() => {
-    const ids = NAV_LINKS.map((l) => l.href.slice(1));
-    const onScroll = () => {
-      const pos = window.scrollY + window.innerHeight * 0.4;
-      let current = "home";
-      ids.forEach((id) => {
-        const el = document.getElementById(id);
-        if (el && el.offsetTop <= pos) current = id;
-      });
-      setActive(current);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  // lock body scroll when the mobile menu is open
+  // Lock body scroll when mobile menu is open
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => {
@@ -51,9 +44,14 @@ export default function Navbar() {
     };
   }, [open]);
 
+  const isCurrentActive = (path: string) => {
+    if (path === "/") return location.pathname === "/";
+    return location.pathname.startsWith(path);
+  };
+
   return (
     <header className="fixed inset-x-0 top-0 z-40">
-      {/* info strip */}
+      {/* Top info strip */}
       <div
         className={cn(
           "hidden md:flex items-center justify-between px-6 lg:px-10 py-2 text-[11px] tracking-[0.18em] uppercase transition-all duration-500 overflow-hidden",
@@ -73,7 +71,7 @@ export default function Navbar() {
         </a>
       </div>
 
-      {/* main bar */}
+      {/* Main bar */}
       <nav
         className={cn(
           "flex items-center justify-between px-5 sm:px-8 lg:px-10 transition-all duration-500",
@@ -82,7 +80,8 @@ export default function Navbar() {
             : "bg-transparent py-5",
         )}
       >
-        <a href="#home" className="flex items-center gap-3 group" aria-label="ARJU home">
+        {/* Brand Logo */}
+        <Link to="/" className="flex items-center gap-3 group" aria-label="ARJU home">
           <Logo variant="mark" className="h-11 w-auto sm:h-12 transition-transform duration-500 group-hover:scale-105" />
           <span className="hidden sm:flex flex-col leading-none">
             <span className="font-display font-bold text-xl tracking-[0.14em] text-cream">ARJU</span>
@@ -90,48 +89,52 @@ export default function Navbar() {
               TASTE OF CANADA
             </span>
           </span>
-        </a>
+        </Link>
 
-        {/* desktop links */}
+        {/* Desktop links */}
         <ul className="hidden xl:flex items-center gap-7">
-          {NAV_LINKS.map((link) => (
-            <li key={link.href}>
-              <a
-                href={link.href}
-                className={cn(
-                  "relative text-[11px] font-medium tracking-[0.28em] uppercase transition-colors duration-300",
-                  "after:absolute after:left-0 after:-bottom-1.5 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-crimson-bright after:transition-transform after:duration-300 hover:after:scale-x-100",
-                  active === link.href.slice(1)
-                    ? "text-crimson-bright after:scale-x-100"
-                    : "text-cream/85 hover:text-cream",
-                )}
-              >
-                {link.label}
-              </a>
-            </li>
-          ))}
+          {PUBLIC_PAGES.map((link) => {
+            const active = isCurrentActive(link.path);
+            return (
+              <li key={link.path}>
+                <Link
+                  to={link.path}
+                  className={cn(
+                    "relative text-[11px] font-medium tracking-[0.28em] uppercase transition-colors duration-300",
+                    "after:absolute after:left-0 after:-bottom-1.5 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-crimson-bright after:transition-transform after:duration-300 hover:after:scale-x-100",
+                    active
+                      ? "text-crimson-bright after:scale-x-100"
+                      : "text-cream/85 hover:text-cream",
+                  )}
+                >
+                  {link.label}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
 
+        {/* Action buttons */}
         <div className="flex items-center gap-2.5 sm:gap-3">
-          <a
-            href="#visit"
+          <Link
+            to="/booking"
             className="hidden xl:inline-flex items-center gap-2 border border-cream/35 px-6 py-3 text-[11px] font-semibold tracking-[0.24em] uppercase text-cream transition-all duration-300 hover:border-cream hover:bg-cream/10"
           >
             Reserve
-          </a>
-          <a
-            href="#order"
+          </Link>
+          <Link
+            to="/menu#order-online"
             className="inline-flex items-center gap-2 bg-crimson hover:bg-crimson-bright text-cream text-[10px] sm:text-[11px] font-semibold tracking-[0.2em] sm:tracking-[0.24em] uppercase px-4 py-2.5 sm:px-6 sm:py-3 transition-all duration-300 hover:shadow-[0_8px_30px_rgba(200,16,46,0.45)]"
           >
             <BagIcon className="h-4 w-4" />
             Order online
-          </a>
+          </Link>
 
-          {/* cart */}
+          {/* Cart trigger button */}
           <button
             onClick={openCart}
             aria-label={`Open your order, ${count} item${count === 1 ? "" : "s"}`}
-            className="relative flex h-11 w-11 items-center justify-center border border-cream/25 bg-ink/40 text-cream backdrop-blur transition-colors hover:border-crimson-bright"
+            className="relative flex h-11 w-11 items-center justify-center border border-cream/25 bg-ink/40 text-cream backdrop-blur transition-colors hover:border-crimson-bright cursor-pointer"
           >
             <BagIcon className="h-5 w-5" />
             {count > 0 && (
@@ -141,11 +144,11 @@ export default function Navbar() {
             )}
           </button>
 
-          {/* burger */}
+          {/* Mobile burger toggle */}
           <button
             onClick={() => setOpen(true)}
-            aria-label="Open menu"
-            className="xl:hidden relative z-50 flex h-11 w-11 flex-col items-center justify-center gap-1.5 border border-cream/25 bg-ink/40 backdrop-blur hover:border-crimson-bright transition-colors"
+            aria-label="Open navigation menu"
+            className="xl:hidden relative z-50 flex h-11 w-11 flex-col items-center justify-center gap-1.5 border border-cream/25 bg-ink/40 backdrop-blur hover:border-crimson-bright transition-colors cursor-pointer"
           >
             <span className="h-px w-5 bg-cream" />
             <span className="h-px w-5 bg-crimson-bright" />
@@ -154,10 +157,10 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* mobile overlay */}
+      {/* Mobile drawer overlay */}
       <div
         className={cn(
-          "lg:hidden fixed inset-0 z-40 transition-all duration-500",
+          "xl:hidden fixed inset-0 z-50 transition-all duration-500",
           open ? "visible opacity-100" : "invisible opacity-0 pointer-events-none",
         )}
       >
@@ -165,7 +168,7 @@ export default function Navbar() {
         <button
           onClick={() => setOpen(false)}
           aria-label="Close menu"
-          className="absolute top-6 right-6 z-10 flex h-11 w-11 items-center justify-center border border-cream/25 text-cream hover:border-crimson-bright transition-colors"
+          className="absolute top-6 right-6 z-10 flex h-11 w-11 items-center justify-center border border-cream/25 text-cream hover:border-crimson-bright transition-colors cursor-pointer"
         >
           <svg viewBox="0 0 20 20" className="w-4 h-4" stroke="currentColor" strokeWidth="1.6">
             <path d="M4 4l12 12M16 4L4 16" />
@@ -174,68 +177,71 @@ export default function Navbar() {
 
         <div className="relative h-full flex flex-col justify-center px-10 overflow-y-auto">
           <ul className="space-y-2">
-            {NAV_LINKS.map((link, i) => (
-              <li
-                key={link.href}
-                style={{ transitionDelay: `${open ? 120 + i * 70 : 0}ms` }}
-                className={cn(
-                  "transition-all duration-500",
-                  open ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
-                )}
-              >
-                <a
-                  href={link.href}
-                  onClick={() => setOpen(false)}
+            {PUBLIC_PAGES.map((link, i) => {
+              const active = isCurrentActive(link.path);
+              return (
+                <li
+                  key={link.path}
+                  style={{ transitionDelay: `${open ? 100 + i * 60 : 0}ms` }}
                   className={cn(
-                    "group flex items-baseline gap-4 py-2.5 font-display text-4xl sm:text-5xl",
-                    active === link.href.slice(1) ? "text-crimson-bright" : "text-cream",
+                    "transition-all duration-500",
+                    open ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
                   )}
                 >
-                  <span className="text-xs font-body text-stone tracking-widest w-7">
-                    0{i + 1}
-                  </span>
-                  <span className="group-hover:italic group-hover:text-crimson-bright transition-colors duration-300">
-                    {link.label}
-                  </span>
-                </a>
-              </li>
-            ))}
+                  <Link
+                    to={link.path}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "group flex items-baseline gap-4 py-2 font-display text-3xl sm:text-4xl",
+                      active ? "text-crimson-bright" : "text-cream",
+                    )}
+                  >
+                    <span className="text-xs font-body text-stone tracking-widest w-7">
+                      0{i + 1}
+                    </span>
+                    <span className="group-hover:italic group-hover:text-crimson-bright transition-colors duration-300">
+                      {link.label}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
 
           <div
-            style={{ transitionDelay: open ? "600ms" : "0ms" }}
+            style={{ transitionDelay: open ? "500ms" : "0ms" }}
             className={cn(
-              "mt-10 border-t border-cream/15 pt-6 transition-all duration-500",
+              "mt-8 border-t border-cream/15 pt-6 transition-all duration-500",
               open ? "opacity-100" : "opacity-0",
             )}
           >
             <div className="grid grid-cols-2 gap-3">
-              <a
-                href="#order"
+              <Link
+                to="/menu#order-online"
                 onClick={() => setOpen(false)}
-                className="inline-flex items-center justify-center gap-2 bg-crimson px-4 py-3.5 text-[11px] font-semibold tracking-[0.22em] uppercase text-cream transition-colors hover:bg-crimson-bright"
+                className="inline-flex items-center justify-center gap-2 bg-crimson px-4 py-3.5 text-[11px] font-semibold tracking-[0.22em] uppercase text-cream transition-colors hover:bg-crimson-bright text-center"
               >
                 <BagIcon className="h-4 w-4" />
                 Order online
-              </a>
-              <a
-                href="#visit"
+              </Link>
+              <Link
+                to="/booking"
                 onClick={() => setOpen(false)}
-                className="inline-flex items-center justify-center border border-cream/35 px-4 py-3.5 text-[11px] font-semibold tracking-[0.22em] uppercase text-cream transition-colors hover:bg-cream/10"
+                className="inline-flex items-center justify-center border border-cream/35 px-4 py-3.5 text-[11px] font-semibold tracking-[0.22em] uppercase text-cream transition-colors hover:bg-cream/10 text-center"
               >
                 Book a table
-              </a>
+              </Link>
             </div>
-            <p className="text-[11px] tracking-[0.3em] uppercase text-stone mt-6 mb-2">
-              Or call us
+            <p className="text-[11px] tracking-[0.3em] uppercase text-stone mt-6 mb-1">
+              Direct Phone
             </p>
             <a
               href={`tel:${PHONE.replace(/[^0-9]/g, "")}`}
-              className="font-display text-2xl text-cream hover:text-crimson-bright transition-colors"
+              className="font-display text-xl text-cream hover:text-crimson-bright transition-colors"
             >
               {PHONE}
             </a>
-            <p className="mt-3 text-sm text-stone">{ADDRESS}</p>
+            <p className="mt-2 text-xs text-stone">{ADDRESS}</p>
           </div>
         </div>
       </div>
